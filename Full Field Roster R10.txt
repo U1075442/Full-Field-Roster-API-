@@ -1,0 +1,165 @@
+      
+         create or replace view static."ROC_FULL_FIELD_ROSTER_API__c"(
+	UNIQUE_ID,
+	EMPLOYEE_ID,
+	EMPLOYEE_VALUE,
+	LOGIN_ID,
+	FIRST_NAME,
+	MIDDLE_NAME,
+	LAST_NAME,
+	PRIMARY_EMAIL_ID,
+	FIELD_TITLE_FOR_EA_ID,
+	EAFT_EFFECTIVE_DATE,
+	EAFT_END_DATE,
+	EAFT_LAST_UPDATE_DATE,
+	FIELD_TITLE,
+	FIELD_TITLE_CODE,
+	EAFT_EMPLOYEE_ASSIGNMENT_TYPE,
+	EAFT_DEL_FLAG,
+	ESA_DELETE_INDICATOR,
+	EMPLOYEE_SALES_AREA_ID,
+	ESA_EFFECTIVE_DATE,
+	ESA_END_DATE,
+	ESA_LAST_UPDATE_DATE,
+	EMPLOYEE_SALES_AREA_TYPE_CODE,
+	SALES_AREA_PARENT,
+	SA_RELATION_TYPE_CODE,
+	STATUS,
+	SALES_AREA_ID,
+	SALES_AREA_VALUE,
+	SALES_AREA_SHORT_DESCRIPTION,
+	SALES_AREA_TYPE_CODE,
+	SUBTYPE,
+	"Territory Role / Team",
+	SALES_FORCE_ID,
+	SALES_FORCE_VALUE,
+	SALES_FORCE_SHORT_DESCRIPTION,
+	SALES_FORCE_TYPE_CODE,
+	REGION_CODE,
+	EMPLOYEE_COUNTRY_CODE,
+	CELL_NUMBER,
+	HOME_STATE,
+	WORKDAY_JOB_TITLE,
+	EMPLOYEE_TYPE_CODE,
+	EMPLOYEE_STATUS_CODE,
+	POSITION_TITLE
+) as
+  SELECT UUID_STRING() as "UNIQUE_ID", EMP."SOMUserId" AS "EMPLOYEE_ID",  EMP."UniqueIntegrationId" AS "EMPLOYEE_VALUE",
+        EMP."FederationIdentifier" AS "LOGIN_ID",  EMP."FirstName" AS "FIRST_NAME",  EMP."MiddleName" AS "MIDDLE_NAME",
+        EMP."LastName" AS "LAST_NAME", EMP."Email" AS "PRIMARY_EMAIL_ID",
+        FTF."SOMFieldTitleId" AS "FIELD_TITLE_FOR_EA_ID", to_char(EAFT."EffectiveDate"::timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "EAFT_EFFECTIVE_DATE",
+        to_char(EAFT."EndDate"::timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "EAFT_END_DATE", to_char(EAFT."LastModifiedDate"::timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "EAFT_LAST_UPDATE_DATE",
+        FTF."Name" as "FIELD_TITLE" , FTF."FieldTitleCode" AS "FIELD_TITLE_CODE", 
+        --EAFT."TerritoryHierarchyLevel" as EAFT_EMPLOYEE_ASSIGNMENT_TYPE,
+   ESA."AssignmentType" as "EAFT_EMPLOYEE_ASSIGNMENT_TYPE",
+        CASE when EAFT."Status" = 'ACTV' AND EAFT."EndDate" > sysdate() and EAFT."EffectiveDate" <= sysdate() then '0'
+        	when EAFT."Status" = 'ACTV' AND EAFT."EndDate" < sysdate() and EAFT."EffectiveDate" <= sysdate() then '0'
+            when EAFT."Status" is NULL then '0'
+                    else '1'
+                END as "EAFT_DEL_FLAG" ,
+          CASE WHEN ESA."Status" = 'ACTV' then '0'
+               ELSE '1'
+               END AS "ESA_DELETE_INDICATOR",
+       // EAFT."Status" AS EAFT_DEL_FLAG,
+        ESA."SOMUserAssignmentId" AS "EMPLOYEE_SALES_AREA_ID", to_char(ESA."EffectiveDate"::timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "ESA_EFFECTIVE_DATE", to_char(ESA."EndDate"::timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "ESA_END_DATE", to_char(ESA."LastModifiedDate"::timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "ESA_LAST_UPDATE_DATE", ESA."AssignmentType" AS "EMPLOYEE_SALES_AREA_TYPE_CODE",
+        SAC."SALES_AREA_PARENT",
+        SAC."SA_RELATION_TYPE_CODE", //SAC."STATUS",
+       CASE WHEN ESA."Status"='INAC' or ESA."EndDate" < sysdate() then 'INACTIVE'                //NEWLY ADDED
+             WHEN EAFT."Status" = 'INAC' or EAFT."EndDate" < sysdate() then 'INACTIVE'
+            WHEN SAC."STATUS" = 'INAC' or SAC."END_DATE" < sysdate() then 'INACTIVE'
+             else 'ACTIVE'
+            END AS "STATUS", 
+        SA."SOMTerritoryId" AS "SALES_AREA_ID", SA."Name" AS "SALES_AREA_VALUE",
+        SA."Description" AS "SALES_AREA_SHORT_DESCRIPTION" ,
+        SA."Type" AS "SALES_AREA_TYPE_CODE",SA."SubType" AS "SUBTYPE",
+        SA."RCH_Territory_Role_Team__c" as "Territory Role / Team", 
+        SF."SOMSalesForceId" AS "SALES_FORCE_ID",
+        SF."Name" AS "SALES_FORCE_VALUE",
+        SF."Description" AS "SALES_FORCE_SHORT_DESCRIPTION",
+        SF."Type" AS "SALES_FORCE_TYPE_CODE",
+        REG."Name" AS "REGION_CODE",
+        EMP."Country" as "EMPLOYEE_COUNTRY_CODE", 
+        EC."CommunicationDetail" AS "CELL_NUMBER",
+        EAD."State" AS "HOME_STATE", 
+        EMP."ROC_WorkDay_Job_Title__c" AS "WORKDAY_JOB_TITLE",
+        EMP."Type" AS "EMPLOYEE_TYPE_CODE", 
+        EMP."EmploymentStatus" AS "EMPLOYEE_STATUS_CODE",
+        EMP."ROC_POSITION_TITLE__c" AS "POSITION_TITLE"
+        FROM OUTPUT."OMUserAssignment" ESA
+        JOIN STATIC."OMUser" EMP  ON ESA."SOMUserId" = EMP."SOMUserId"
+            // AND SYSDATE() BETWEEN EMP."EffectiveDate" AND EMP."EndDate"
+            // AND EMP."Status"='ACTV'
+//             AND SYSDATE BETWEEN ESA.EFFECTIVE_DATE AND ESA.END_DATE
+           //  AND ESA."Status"='ACTV'
+      // JOIN EMPLOYEE_ATTRIBUTE EAA  ON EAA.EMPLOYEE_ID = EMP.EMPLOYEE_ID
+        JOIN STATIC."OMRegion" REG  ON EMP."SOMRegionId"=REG."SOMRegionId"
+             AND SYSDATE() BETWEEN REG."EffectiveDate" AND REG."EndDate"
+             AND REG."Status"='ACTV'
+        JOIN OUTPUT."OMTerritory" SA  ON SA."SOMTerritoryId" = ESA."SOMTerritoryId"
+             AND SYSDATE() BETWEEN SA."EffectiveDate" AND SA."EndDate"
+             AND SA."Status"='ACTV'
+        //JOIN SALES_AREA_ATTRIBUTE SAA  ON SAA.SALES_AREA_ID = SA.SALES_AREA_ID
+            // AND SYSDATE BETWEEN SAA.EFFECTIVE_DATE AND SAA.END_DATE
+            // AND SAA.DELETE_INDICATOR=0
+        JOIN OUTPUT."OMTerritorySalesForce" SASF  ON SASF."SOMTerritoryId"= SA."SOMTerritoryId"
+             AND SYSDATE() BETWEEN SASF."EffectiveDate" AND SASF."EndDate"
+             AND SASF."Status"='ACTV'
+        JOIN OUTPUT."OMSalesForce" SF  ON SF."SOMSalesForceId"=SASF."SOMSalesForceId"
+             AND SYSDATE() BETWEEN SF."EffectiveDate" AND SF."EndDate"
+             AND SF."Status"='ACTV'
+        LEFT OUTER JOIN OUTPUT."OMUserTerritoryTitle" EAFT  ON EAFT."SOMUserId" = ESA."SOMUserId"
+             AND EAFT."SOMTerritoryId" = ESA."SOMTerritoryId"
+            // AND EAFT."Status" = 'ACTV' 
+            AND EAFT."SOMUserAssignmentId" = ESA."SOMUserAssignmentId"
+           // AND EAFT."EffectiveDate" = ESA."EffectiveDate"
+          //  AND EAFT."EndDate" =  ESA."EndDate"
+           // AND FTF.EMPLOYEE_SALES_AREA_TYPE_CODE=ESA.EMPLOYEE_SALES_AREA_TYPE_CODE
+        LEFT OUTER JOIN STATIC."OMFieldTitle" FTF  ON FTF."SOMFieldTitleId" = EAFT."SOMFieldTitleId"
+           // AND SYSDATE() BETWEEN FTF."EffectiveDate" AND FTF."EndDate"
+        LEFT OUTER JOIN STATIC."OMUserAddress" EAD  ON EMP."SOMUserId" = EAD."SOMUserId"
+             AND SYSDATE() BETWEEN EAD."EffectiveDate" AND EAD."EndDate"
+             AND EAD."Type"='HOME'
+             AND EAD."Status"='ACTV'
+        LEFT OUTER JOIN (select "SOMUserId","Type","CommunicationDetail" //COMMUNICATION_VALUE2
+from STATIC."OMUserCommunication" where "Type" ='CELL'  AND SYSDATE() BETWEEN "EffectiveDate" AND "EndDate" AND "Status"='ACTV')
+
+         EC ON EC."SOMUserId" = EMP."SOMUserId"
+
+        //JOIN EMPLOYEE_STATUS ES ON EMP.EMPLOYEE_ID=ES.EMPLOYEE_ID 
+         //   AND ES.DELETE_INDICATOR=0 AND SYSDATE BETWEEN ES.EFFECTIVE_DATE AND ES.END_dATE AND ES.STATUS_TYPE_CODE='EMPL'
+
+      JOIN
+        ( SELECT * from (
+        SELECT CSAA."Name"            AS SALES_AREA_CHILD,
+                SAR."EffectiveDate"   AS EFFECTIVE_DATE,
+                SAR."EndDate"         AS END_DATE,
+                PSAA."Name"           AS SALES_AREA_PARENT,
+                CASE when SAR."Status" = 'ACTV' AND SAR."EndDate"  > sysdate() AND SAR."EffectiveDate"  < SYSDATE() then 'ACTIVE'
+                      else 'INACTIVE'
+                END as Status ,
+                SAR."RelationType" AS SA_RELATION_TYPE_CODE,
+                SAR."LastModifiedDate" AS LAST_UPDATE_DATE
+        FROM OUTPUT."OMTerritoryHierarchy" SAR
+        JOIN (SELECT  A.*, ROW_NUMBER() OVER(PARTITION BY "SOMTerritoryId" ORDER BY
+                              CASE WHEN "EndDate" > SYSDATE() AND "Status"='ACTV' THEN 1
+                                   WHEN "EndDate"= SYSDATE() AND "Status"='ACTV'  THEN 2
+                                   WHEN "EndDate"< SYSDATE() AND "Status"='ACTV'  THEN 3
+                                   WHEN "Status"='INACTV' THEN 4 END,"Status"  DESC) AS RNK
+               FROM OUTPUT."OMTerritory" A WHERE SYSDATE() >= "EffectiveDate" ) CSAA
+        ON SAR."SOMChildTerritoryId" = CSAA."SOMTerritoryId"
+        AND CSAA.RNK=1
+        JOIN (SELECT  A.*, ROW_NUMBER() OVER(PARTITION BY "SOMTerritoryId" ORDER BY
+                                        CASE WHEN "EndDate"> SYSDATE() AND "Status" ='ACTV' THEN 1
+                                             WHEN "EndDate"= SYSDATE() AND "Status" ='ACTV' THEN 2
+                                             WHEN "EndDate"< SYSDATE() AND "Status" ='ACTV' THEN 3
+                                             WHEN "Status" ='INACTV' THEN 4 END,"EndDate"  DESC) AS RNK
+                         FROM OUTPUT."OMTerritory" A WHERE SYSDATE() >= "EffectiveDate" ) PSAA
+        ON SAR."SOMParentTerritoryId" = PSAA."SOMTerritoryId"
+        AND PSAA.RNK=1
+        )
+        ) SAC
+        ON SAC.SALES_AREA_CHILD = SA."Name";
+        
+        
+ //(Note:Please insert the below values into SchemaKey only when your're newly deploying it into snowflake)       
+ insert into public."SchemaKey" values ('PRIMARY', 'STATIC','ROC_FULL_FIELD_ROSTER_API__c', 'UNIQUE_ID', 'ROC_FULL_FIELD_ROSTER_PK', null, null, null, null);
