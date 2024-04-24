@@ -1,5 +1,5 @@
       
-         create or replace view static."ROC_FULL_FIELD_ROSTER_API__c"(
+               create or replace view static."ROC_FULL_FIELD_ROSTER_API__c"(
 	UNIQUE_ID,
 	EMPLOYEE_ID,
 	EMPLOYEE_VALUE,
@@ -37,6 +37,8 @@
 	SALES_FORCE_TYPE_CODE,
 	REGION_CODE,
 	EMPLOYEE_COUNTRY_CODE,
+	ALTERNATE_EMAIL,
+	AVAILABLE_COUNTRY,
 	CELL_NUMBER,
 	HOME_STATE,
 	WORKDAY_JOB_TITLE,
@@ -63,22 +65,28 @@
        // EAFT."Status" AS EAFT_DEL_FLAG,
         ESA."SOMUserAssignmentId" AS "EMPLOYEE_SALES_AREA_ID", to_char(ESA."EffectiveDate"::timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "ESA_EFFECTIVE_DATE", to_char(ESA."EndDate"::timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "ESA_END_DATE", to_char(ESA."LastModifiedDate"::timestamp, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "ESA_LAST_UPDATE_DATE", ESA."AssignmentType" AS "EMPLOYEE_SALES_AREA_TYPE_CODE",
         SAC."SALES_AREA_PARENT",
-        SAC."SA_RELATION_TYPE_CODE", //SAC."STATUS",
+        SAC."SA_RELATION_TYPE_CODE",// SAC."STATUS",
        CASE WHEN ESA."Status"='INAC' or ESA."EndDate" < sysdate() then 'INACTIVE'                //NEWLY ADDED
              WHEN EAFT."Status" = 'INAC' or EAFT."EndDate" < sysdate() then 'INACTIVE'
             WHEN SAC."STATUS" = 'INAC' or SAC."END_DATE" < sysdate() then 'INACTIVE'
-             else 'ACTIVE'
+            else 'ACTIVE'
             END AS "STATUS", 
         SA."SOMTerritoryId" AS "SALES_AREA_ID", SA."Name" AS "SALES_AREA_VALUE",
         SA."Description" AS "SALES_AREA_SHORT_DESCRIPTION" ,
         SA."Type" AS "SALES_AREA_TYPE_CODE",SA."SubType" AS "SUBTYPE",
-        SA."RCH_Territory_Role_Team__c" as "Territory Role / Team", 
+       SA."RCH_Territory_Role_Team__c" as "Territory Role / Team", 
+    // SA."ROC_Team1__c" AS "Team 1",
+    // SA."ROC_Team2__c" AS "Team 2",
+    // SA."ROC_Team3__c" AS "Team 3",
+    // SA."ROC_Team4__c" AS "Team 4",
         SF."SOMSalesForceId" AS "SALES_FORCE_ID",
         SF."Name" AS "SALES_FORCE_VALUE",
         SF."Description" AS "SALES_FORCE_SHORT_DESCRIPTION",
         SF."Type" AS "SALES_FORCE_TYPE_CODE",
-        REG."Name" AS "REGION_CODE",
+        REG."UniqueIntegrationId" AS "REGION_CODE",
         EMP."Country" as "EMPLOYEE_COUNTRY_CODE", 
+        EMP."RCH_Alternate_email__c" as "ALTERNATE_EMAIL",
+      COALESCE(EMP."RCH_Available_Country__c","EMPLOYEE_COUNTRY_CODE") as "AVAILABLE_COUNTRY",
         EC."CommunicationDetail" AS "CELL_NUMBER",
         EAD."State" AS "HOME_STATE", 
         EMP."ROC_WorkDay_Job_Title__c" AS "WORKDAY_JOB_TITLE",
@@ -88,16 +96,13 @@
         FROM OUTPUT."OMUserAssignment" ESA
         JOIN STATIC."OMUser" EMP  ON ESA."SOMUserId" = EMP."SOMUserId"
             // AND SYSDATE() BETWEEN EMP."EffectiveDate" AND EMP."EndDate"
-            // AND EMP."Status"='ACTV'
-//             AND SYSDATE BETWEEN ESA.EFFECTIVE_DATE AND ESA.END_DATE
-           //  AND ESA."Status"='ACTV'
-      // JOIN EMPLOYEE_ATTRIBUTE EAA  ON EAA.EMPLOYEE_ID = EMP.EMPLOYEE_ID
-        JOIN STATIC."OMRegion" REG  ON EMP."SOMRegionId"=REG."SOMRegionId"
-             AND SYSDATE() BETWEEN REG."EffectiveDate" AND REG."EndDate"
-             AND REG."Status"='ACTV'
+           //  AND EMP."Status"='ACTV'
         JOIN OUTPUT."OMTerritory" SA  ON SA."SOMTerritoryId" = ESA."SOMTerritoryId"
              AND SYSDATE() BETWEEN SA."EffectiveDate" AND SA."EndDate"
              AND SA."Status"='ACTV'
+             JOIN STATIC."OMRegion" REG  ON SA."SOMRegionId"=REG."SOMRegionId"
+             AND SYSDATE() BETWEEN REG."EffectiveDate" AND REG."EndDate"
+             AND REG."Status"='ACTV'   
         //JOIN SALES_AREA_ATTRIBUTE SAA  ON SAA.SALES_AREA_ID = SA.SALES_AREA_ID
             // AND SYSDATE BETWEEN SAA.EFFECTIVE_DATE AND SAA.END_DATE
             // AND SAA.DELETE_INDICATOR=0
@@ -121,7 +126,7 @@
              AND EAD."Type"='HOME'
              AND EAD."Status"='ACTV'
         LEFT OUTER JOIN (select "SOMUserId","Type","CommunicationDetail" //COMMUNICATION_VALUE2
-from STATIC."OMUserCommunication" where "Type" ='CELL'  AND SYSDATE() BETWEEN "EffectiveDate" AND "EndDate" AND "Status"='ACTV')
+from STATIC."OMUserCommunication" where "Type" ='CELL'  AND SYSDATE() BETWEEN "EffectiveDate" AND "EndDate" AND "Status"='ACTV') 
 
          EC ON EC."SOMUserId" = EMP."SOMUserId"
 
@@ -159,7 +164,6 @@ from STATIC."OMUserCommunication" where "Type" ='CELL'  AND SYSDATE() BETWEEN "E
         )
         ) SAC
         ON SAC.SALES_AREA_CHILD = SA."Name";
-        
         
  //(Note:Please insert the below values into SchemaKey only when your're newly deploying it into snowflake)       
  insert into public."SchemaKey" values ('PRIMARY', 'STATIC','ROC_FULL_FIELD_ROSTER_API__c', 'UNIQUE_ID', 'ROC_FULL_FIELD_ROSTER_PK', null, null, null, null);
