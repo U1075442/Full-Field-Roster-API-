@@ -1,4 +1,4 @@
-create or replace view "ROC_FULL_FIELD_ROSTER_API__c"(
+create or replace view static."ROC_FULL_FIELD_ROSTER_API__c"(
 	UNIQUE_ID,
 	EMPLOYEE_ID,
 	EMPLOYEE_VALUE,
